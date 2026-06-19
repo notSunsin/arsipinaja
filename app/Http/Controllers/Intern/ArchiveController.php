@@ -1,0 +1,167 @@
+<?php
+
+namespace App\Http\Controllers\Intern;
+
+use App\Http\Controllers\ArchiveController as BaseArchiveController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+class ArchiveController extends BaseArchiveController
+{
+    /**
+     * Override the getViewPath method to use intern views
+     */
+    protected function getViewPath(string $viewName): string
+    {
+        return 'intern.' . $viewName;
+    }
+
+    /**
+     * Override the canCreateArchive method for intern
+     */
+    protected function canCreateArchive(): bool
+    {
+        $user = Auth::user();
+        return $user->roles->contains('name', 'intern');
+    }
+
+    /**
+     * Override the getFilterUsers method for intern
+     */
+    protected function getFilterUsers()
+    {
+        $user = Auth::user();
+
+        if ($user->roles->contains('name', 'intern')) {
+            // Intern can only see staff and intern users
+            return \App\Models\User::whereHas('roles', function ($query) {
+                $query->whereIn('name', ['staff', 'intern']);
+            })->orderBy('name')->get();
+        }
+
+        return \App\Models\User::orderBy('name')->get();
+    }
+
+    /**
+     * Preview export for intern (no actual export)
+     */
+    public function exportProcess(Request $request)
+    {
+        $status = $request->input('status', 'all');
+        $yearFrom = $request->input('year_from');
+        $yearTo = $request->input('year_to');
+        $categoryId = $request->input('category_id');
+        $classificationId = $request->input('classification_id');
+        $createdBy = $request->input('created_by', 'current_user'); // Default ke current user
+
+        $query = \App\Models\Archive::with(['category', 'classification', 'createdByUser']);
+
+        // Filter berdasarkan user yang membuat (sesuai policy intern)
+        if ($createdBy === 'current_user') {
+            $query->where('created_by', Auth::id());
+        } elseif (!empty($createdBy)) {
+            // Pastikan intern hanya bisa export data miliknya atau data intern/staff lain
+            $query->where('created_by', $createdBy)
+                ->whereHas('createdByUser.roles', function ($q) {
+                    $q->whereIn('name', ['intern', 'staff']);
+                });
+        } else {
+            // Default: hanya data intern dan staff
+            $query->whereHas('createdByUser.roles', function ($q) {
+                $q->whereIn('name', ['intern', 'staff']);
+            });
+        }
+
+        if ($status && $status !== 'all') {
+            $query->where('status', ucfirst($status));
+        }
+
+        if ($yearFrom) {
+            $query->whereYear('kurun_waktu_start', '>=', $yearFrom);
+        }
+
+        if ($yearTo) {
+            $query->whereYear('kurun_waktu_start', '<=', $yearTo);
+        }
+
+        if ($categoryId) {
+            $query->where('category_id', $categoryId);
+        }
+
+        if ($classificationId) {
+            $query->where('classification_id', $classificationId);
+        }
+
+        $archives = $query->orderBy('created_at', 'desc')->get();
+
+        // Generate nama file berdasarkan filter
+        $fileName = 'arsip-export-' . $status . '-' . date('Y-m-d') . '.xlsx';
+
+        // Return Excel download langsung
+        return \App\Exports\ArchivesExport::download($archives, $fileName);
+    }
+
+    /**
+     * Show export form for intern
+     */
+    public function exportForm($status = 'all')
+    {
+        $request = request(); // ambil Request manual
+
+        $statusTitle = match ($status) {
+            'all' => 'Semua Status',
+            'aktif' => 'Arsip Aktif',
+            'inaktif' => 'Arsip Inaktif',
+            'permanen' => 'Arsip Permanen',
+            'musnah' => 'Arsip Musnah',
+            default => 'Semua Status'
+        };
+
+        $query = \App\Models\Archive::where('created_by', Auth::id());
+
+        if ($status && $status !== 'all') {
+            $query->where('status', ucfirst($status));
+        }
+
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        if ($request->filled('classification_id')) {
+            $query->where('classification_id', $request->classification_id);
+        }
+
+        $totalRecords = $query->count();
+
+        return view($this->getViewPath('archives.export'), compact(
+            'status',
+            'statusTitle',
+            'totalRecords'
+        ));
+    }
+
+    /**
+     * Show export menu for intern
+     */
+    public function exportMenu()
+    {
+        $statuses = [
+            'all' => 'Semua Status',
+            'aktif' => 'Arsip Aktif',
+            'inaktif' => 'Arsip Inaktif',
+            'permanen' => 'Arsip Permanen',
+            'musnah' => 'Arsip Musnah'
+        ];
+
+        $archiveCounts = [];
+        foreach ($statuses as $key => $label) {
+            $query = \App\Models\Archive::where('created_by', Auth::id());
+            if ($key !== 'all') {
+                $query->where('status', ucfirst($key));
+            }
+            $archiveCounts[$key] = $query->count();
+        }
+
+        return view($this->getViewPath('archives.export-menu'), compact('statuses', 'archiveCounts'));
+    }
+}

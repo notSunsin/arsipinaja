@@ -1,0 +1,286 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class Archive extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'category_id',
+        'classification_id',
+        'index_number',
+        'description',
+        'lampiran_surat',
+        'kurun_waktu_start',
+        'tingkat_perkembangan',
+        'skkad',
+        'is_manual_input',
+        'definitive_number',
+        'year_detected',
+        'sort_order',
+        'manual_retention_aktif',
+        'manual_retention_inaktif',
+        'manual_nasib_akhir',
+        'jumlah_berkas',
+        'ket',
+        'retention_aktif',
+        'retention_inaktif',
+        'transition_active_due',
+        'transition_inactive_due',
+        'status',
+        'evaluation_notes',
+        'manual_status_override',
+        'manual_override_at',
+        'manual_override_by',
+        'created_by',
+        'updated_by',
+    ];
+
+    protected $casts = [
+        'kurun_waktu_start' => 'date',
+        'transition_active_due' => 'date',
+        'transition_inactive_due' => 'date',
+        'manual_override_at' => 'datetime',
+        'manual_status_override' => 'boolean',
+        'is_manual_input' => 'boolean',
+        'created_by' => 'integer',
+        'updated_by' => 'integer',
+    ];
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
+    }
+
+    public function classification(): BelongsTo
+    {
+        return $this->belongsTo(Classification::class);
+    }
+
+    public function createdByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updatedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function scopeAktif($query)
+    {
+        return $query->where('status', 'Aktif');
+    }
+
+    public function scopeInaktif($query)
+    {
+        return $query->where('status', 'Inaktif');
+    }
+
+    public function scopeMusnah($query)
+    {
+        return $query->where('status', 'Musnah');
+    }
+
+    public function scopePermanen($query)
+    {
+        return $query->where('status', 'Permanen');
+    }
+
+    /**
+     * Get the formatted index number based on status and classification
+     */
+    public function getFormattedIndexNumberAttribute()
+    {
+        // Load relationships if not loaded
+        if (!$this->relationLoaded('classification')) {
+            $this->load('classification');
+        }
+
+        // For "LAINNYA" classification, return the manual index_number regardless of status
+        if ($this->classification && $this->classification->code == 'LAINNYA') {
+            return $this->index_number;
+        }
+
+        // For other classifications, return format: code/index_number/year
+        if ($this->classification && $this->kurun_waktu_start) {
+            return $this->classification->code . '/' . $this->index_number . '/' . $this->kurun_waktu_start->format('Y');
+        }
+
+        // Fallback to original index_number
+        return $this->index_number;
+    }
+
+    /**
+     * Scope for advanced search functionality
+     */
+    public function scopeSearch($query, $term)
+    {
+        if (empty($term)) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($term) {
+            $q->where('index_number', 'ILIKE', "%{$term}%")
+              ->orWhere('description', 'ILIKE', "%{$term}%")
+              ->orWhere('ket', 'ILIKE', "%{$term}%")
+              ->orWhereHas('category', function ($categoryQuery) use ($term) {
+                  $categoryQuery->where('nama_kategori', 'ILIKE', "%{$term}%");
+              })
+              ->orWhereHas('classification', function ($classQuery) use ($term) {
+                  $classQuery->where('nama_klasifikasi', 'ILIKE', "%{$term}%")
+                            ->orWhere('code', 'ILIKE', "%{$term}%");
+              });
+        });
+    }
+
+    /**
+     * Scope for filtering by category
+     */
+    public function scopeByCategory($query, $categoryId)
+    {
+        if (empty($categoryId)) {
+            return $query;
+        }
+
+        return $query->where('category_id', $categoryId);
+    }
+
+    /**
+     * Scope for filtering by classification
+     */
+    public function scopeByClassification($query, $classificationId)
+    {
+        if (empty($classificationId)) {
+            return $query;
+        }
+
+        return $query->where('classification_id', $classificationId);
+    }
+
+    /**
+     * Scope for filtering by status
+     */
+    public function scopeByStatus($query, $status)
+    {
+        if (empty($status)) {
+            return $query;
+        }
+
+        return $query->where('status', $status);
+    }
+
+    /**
+     * Scope for filtering by date range
+     */
+    public function scopeByDateRange($query, $startDate, $endDate)
+    {
+        if (empty($startDate) && empty($endDate)) {
+            return $query;
+        }
+
+        if ($startDate && $endDate) {
+            return $query->whereBetween('kurun_waktu_start', [$startDate, $endDate]);
+        } elseif ($startDate) {
+            return $query->where('kurun_waktu_start', '>=', $startDate);
+        } elseif ($endDate) {
+            return $query->where('kurun_waktu_start', '<=', $endDate);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Scope for filtering by created user
+     */
+    public function scopeByCreatedUser($query, $userId)
+    {
+        if (empty($userId)) {
+            return $query;
+        }
+
+        return $query->where('created_by', $userId);
+    }
+
+    /**
+     * Scope for filtering by year
+     */
+    public function scopeByYear($query, $year)
+    {
+        if (empty($year)) {
+            return $query;
+        }
+
+        return $query->whereYear('kurun_waktu_start', $year);
+    }
+
+    /**
+     * Scope for filtering by year range
+     */
+    public function scopeByYearRange($query, $startYear, $endYear)
+    {
+        if (empty($startYear) && empty($endYear)) {
+            return $query;
+        }
+
+        if ($startYear && $endYear) {
+            return $query->whereYear('kurun_waktu_start', '>=', $startYear)
+                        ->whereYear('kurun_waktu_start', '<=', $endYear);
+        } elseif ($startYear) {
+            return $query->whereYear('kurun_waktu_start', '>=', $startYear);
+        } elseif ($endYear) {
+            return $query->whereYear('kurun_waktu_start', '<=', $endYear);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Scope for filtering archives approaching transition
+     */
+    public function scopeApproachingTransition($query, $days = 30)
+    {
+        // Convert string to integer if needed
+        $days = is_numeric($days) ? (int) $days : 30;
+
+        $today = today();
+        $futureDate = $today->copy()->addDays($days);
+
+        return $query->where(function ($q) use ($today, $futureDate) {
+            $q->whereBetween('transition_active_due', [$today, $futureDate])
+              ->orWhereBetween('transition_inactive_due', [$today, $futureDate]);
+        });
+    }
+
+    /**
+     * Get formatted definitive number display
+     */
+    public function getFormattedDefinitiveNumberAttribute()
+    {
+        if (!$this->definitive_number) {
+            return 'Belum di-generate';
+        }
+
+        return (string) $this->definitive_number;
+    }
+
+    /**
+     * Get definitive number breakdown (for debugging)
+     */
+    public function getDefinitiveNumberBreakdownAttribute()
+    {
+        if (!$this->definitive_number) {
+            return null;
+        }
+
+        return [
+            'simple_number' => $this->definitive_number,
+            'formatted' => (string) $this->definitive_number
+        ];
+    }
+}
