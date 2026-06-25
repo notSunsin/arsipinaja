@@ -351,18 +351,6 @@
                         <i class="fas fa-chevron-right text-gray-400 group-hover:text-cyan-500"></i>
                     </a>
 
-                    <!-- Download Manual Book -->
-                    <a href="{{ asset('manuals/Manual Book - ARSIPIN.pdf') }}" target="_blank"
-                        class="flex items-center justify-between p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors group">
-                        <div class="flex items-center">
-                            <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center mr-3">
-                                <i class="fas fa-book text-white"></i>
-                            </div>
-                            <span class="font-medium text-gray-900">Download Manual Book</span>
-                        </div>
-                        <i class="fas fa-download text-gray-400 group-hover:text-purple-500"></i>
-                    </a>
-
                     <a href="{{ route('admin.search.index') }}"
                         class="flex items-center justify-between p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors group">
                         <div class="flex items-center">
