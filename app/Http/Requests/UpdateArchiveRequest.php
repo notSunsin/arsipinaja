@@ -33,6 +33,10 @@ class UpdateArchiveRequest extends FormRequest
             'skkad' => ['required', 'string', 'in:SANGAT RAHASIA,TERBATAS,RAHASIA,BIASA/TERBUKA'],
             'jumlah_berkas' => ['required', 'integer', 'min:1'],
             'ket' => ['nullable', 'string'],
+            'file' => ['nullable', 'file', 'mimes:pdf,png,jpg,jpeg', 'max:10240'],
+            'tembusan_status' => ['required', 'in:ada,tidak_ada'],
+            'tembusan' => ['nullable', 'array'],
+            'tembusan.*' => ['nullable', 'string', 'max:255'],
             // Manual input fields for hybrid cases
             'is_manual_input' => ['boolean'],
             'manual_retention_aktif' => ['nullable', 'integer', 'min:0'],
@@ -70,6 +74,13 @@ class UpdateArchiveRequest extends FormRequest
             'jumlah_berkas.integer' => 'Jumlah berkas harus berupa angka',
             'jumlah_berkas.min' => 'Jumlah berkas minimal 1',
             'ket.string' => 'Keterangan harus berupa teks',
+            'file.file' => 'File arsip tidak valid',
+            'file.mimes' => 'File arsip harus berformat PDF, PNG, JPG, atau JPEG',
+            'file.max' => 'Ukuran file arsip maksimal 10MB',
+            'tembusan_status.required' => 'Status tembusan wajib dipilih',
+            'tembusan_status.in' => 'Status tembusan harus salah satu dari: Ada Tembusan, Tidak Ada Tembusan',
+            'tembusan.*.string' => 'Tembusan harus berupa teks',
+            'tembusan.*.max' => 'Tembusan maksimal 255 karakter',
             // Manual input validation messages
             'manual_retention_aktif.integer' => 'Retensi aktif manual harus berupa angka',
             'manual_retention_aktif.min' => 'Retensi aktif manual minimal 0',
@@ -97,6 +108,9 @@ class UpdateArchiveRequest extends FormRequest
             'skkad' => 'SKKAD',
             'jumlah_berkas' => 'jumlah berkas',
             'ket' => 'keterangan',
+            'file' => 'file arsip',
+            'tembusan_status' => 'status tembusan',
+            'tembusan' => 'tembusan',
             'is_manual_input' => 'input manual',
             'manual_retention_aktif' => 'retensi aktif manual',
             'manual_retention_inaktif' => 'retensi inaktif manual',
@@ -113,6 +127,13 @@ class UpdateArchiveRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
+            if ($this->input('tembusan_status') === 'ada') {
+                $tembusan = array_filter((array) $this->input('tembusan', []), fn ($t) => trim((string) $t) !== '');
+                if (empty($tembusan)) {
+                    $validator->errors()->add('tembusan', 'Minimal 1 tembusan kepada wajib diisi jika "Ada Tembusan" dipilih.');
+                }
+            }
+
             $classificationId = $this->input('classification_id');
 
             if ($classificationId) {

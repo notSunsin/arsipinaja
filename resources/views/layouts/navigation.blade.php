@@ -3,7 +3,6 @@
     sidebarOpen: false,
     archiveSubmenuOpen: localStorage.getItem('archiveSubmenuOpen') === 'true' || {{ request()->routeIs('admin.archives.*', 'intern.archives.*') ? 'true' : 'false' }},
     masterSubmenuOpen: localStorage.getItem('masterSubmenuOpen') === 'true' || {{ request()->routeIs('admin.categories.*', 'admin.classifications.*') ? 'true' : 'false' }},
-    cetakExportSubmenuOpen: localStorage.getItem('cetakExportSubmenuOpen') === 'true' || {{ request()->routeIs('*.export.*') ? 'true' : 'false' }},
 
     // Watch for submenu changes and persist to localStorage
     init() {
@@ -13,9 +12,6 @@
         this.$watch('masterSubmenuOpen', value => {
             localStorage.setItem('masterSubmenuOpen', value);
         });
-        this.$watch('cetakExportSubmenuOpen', value => {
-            localStorage.setItem('cetakExportSubmenuOpen', value);
-        });
     },
 
     // Toggle functions with proper state management
@@ -24,9 +20,6 @@
     },
     toggleMasterSubmenu() {
         this.masterSubmenuOpen = !this.masterSubmenuOpen;
-    },
-    toggleCetakExportSubmenu() {
-        this.cetakExportSubmenuOpen = !this.cetakExportSubmenuOpen;
     },
 
     // Close sidebar on mobile navigation
@@ -170,38 +163,14 @@
                 </div>
             </div>
 
-            <!-- Cetak & Export Menu with Submenu -->
-            <div class="space-y-1 submenu-container">
-                <button @click="toggleCetakExportSubmenu()"
-                    class="w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200
-                    {{ request()->routeIs('*.export.*') ? 'bg-teal-50 text-teal-700' : 'text-gray-600 hover:bg-teal-50 hover:text-teal-700 hover:translate-x-1' }}">
-                    <div class="flex items-center">
-                        <i class="fas fa-print mr-3 text-lg w-5 transition-colors duration-200"></i>
-                        Export
-                    </div>
-                    <i class="fas fa-chevron-down transform transition-transform duration-200 text-xs"
-                        :class="cetakExportSubmenuOpen ? 'rotate-180' : 'rotate-0'"></i>
-                </button>
-
-                <!-- Cetak & Export Submenu -->
-                <div x-show="cetakExportSubmenuOpen" x-transition:enter="transition ease-out duration-150"
-                    x-transition:enter-start="opacity-0 transform scale-95"
-                    x-transition:enter-end="opacity-100 transform scale-100"
-                    x-transition:leave="transition ease-in duration-100"
-                    x-transition:leave-start="opacity-100 transform scale-100"
-                    x-transition:leave-end="opacity-0 transform scale-95" class="ml-8 space-y-1" x-cloak>
-
-                    <!-- Export Excel - All Roles -->
-                    <a href="{{ auth()->check() && auth()->user()->role_type === 'admin' ? route('admin.export.index') : route('intern.export.index') }}"
-                        @click="closeSidebar()"
-                        class="flex items-center px-4 py-2 text-sm rounded-lg transition-all duration-200
-                        {{ request()->routeIs('*.export.*') ? 'bg-teal-50 text-teal-700' : 'text-gray-500 hover:bg-teal-50 hover:text-teal-700 hover:translate-x-1' }}">
-                        <i class="fas fa-file-excel mr-3 text-sm w-4 transition-colors duration-200"></i>
-                        Export Excel
-                    </a>
-
-                </div>
-            </div>
+            <!-- Export Excel - All Roles -->
+            <a href="{{ auth()->check() && auth()->user()->role_type === 'admin' ? route('admin.export.index') : route('intern.export.index') }}"
+                @click="closeSidebar()"
+                class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200
+                {{ request()->routeIs('*.export.*') ? 'bg-teal-50 text-teal-700 border-r-4 border-teal-700' : 'text-gray-600 hover:bg-teal-50 hover:text-teal-700 hover:translate-x-1' }}">
+                <i class="fas fa-file-excel mr-3 text-lg w-5 transition-colors duration-200"></i>
+                Export Excel
+            </a>
 
             <!-- Bulk Operations - Admin only -->
             @if (auth()->check() && auth()->user()->role_type === 'admin')
@@ -277,9 +246,9 @@
 
             <!-- Logout - Available for all users -->
             <div class="pt-6 mt-6 border-t border-gray-200">
-                <form method="POST" action="{{ route('logout') }}">
+                <form method="POST" action="{{ route('logout') }}" id="sidebarLogoutForm">
                     @csrf
-                    <button type="submit" @click="closeSidebar()"
+                    <button type="button" @click="closeSidebar(); openLogoutModal(document.getElementById('sidebarLogoutForm'))"
                         class="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:translate-x-1">
                         <i class="fas fa-sign-out-alt mr-3 text-lg w-5 transition-colors duration-200"></i>
                         Logout

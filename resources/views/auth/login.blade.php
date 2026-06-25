@@ -399,6 +399,20 @@
             font-size: 0.875rem;
         }
 
+        /* Success Messages */
+        .success-message {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #6ee7b7;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
         /* Animations */
         @keyframes float {
             0%, 100% { transform: translateY(0px) rotate(0deg); }
@@ -520,6 +534,13 @@
                 <h3>Masuk ke Sistem</h3>
                 <p>Gunakan email dan password Anda untuk mengakses ARSIPIN</p>
             </div>
+
+            @if (session('success'))
+                <div class="success-message">
+                    <i class="fas fa-check-circle"></i>
+                    <span>{{ session('success') }}</span>
+                </div>
+            @endif
 
             @if ($errors->any())
                 <div class="error-message">

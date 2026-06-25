@@ -9,6 +9,7 @@ use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Events\AfterSheet;
+use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -112,7 +113,7 @@ class ArchiveInaktifSheet implements FromCollection, WithTitle, WithEvents, With
     public function styles(Worksheet $sheet)
     {
         // Set default style for all cells
-        $sheet->getStyle('A:M')->applyFromArray([
+        $sheet->getStyle('A:L')->applyFromArray([
             'font' => [
                 'name' => 'Arial',
                 'size' => 10,
@@ -123,8 +124,8 @@ class ArchiveInaktifSheet implements FromCollection, WithTitle, WithEvents, With
             ],
         ]);
 
-        // Hide columns after M
-        foreach (range('N', 'Z') as $col) {
+        // Hide columns after L
+        foreach (range('M', 'Z') as $col) {
             $sheet->getColumnDimension($col)->setWidth(0);
             $sheet->getColumnDimension($col)->setVisible(false);
         }
@@ -138,16 +139,16 @@ class ArchiveInaktifSheet implements FromCollection, WithTitle, WithEvents, With
                 $data = $this->collection();
                 $year = $this->year;
 
-                // 1. CLEAR ALL CELLS AFTER COLUMN M
+                // 1. CLEAR ALL CELLS AFTER COLUMN L
                 $highestRow = $sheet->getHighestRow();
                 for ($row = 1; $row <= $highestRow; $row++) {
-                    for ($col = 'N'; $col <= 'Z'; $col++) {
+                    for ($col = 'M'; $col <= 'Z'; $col++) {
                         $sheet->setCellValue($col.$row, null);
                     }
                 }
 
-                // 2. SET WHITE BACKGROUND FOR AREA AFTER M
-                $sheet->getStyle('N1:Z'.$highestRow)->applyFromArray([
+                // 2. SET WHITE BACKGROUND FOR AREA AFTER L
+                $sheet->getStyle('M1:Z'.$highestRow)->applyFromArray([
                     'fill' => [
                         'fillType' => Fill::FILL_SOLID,
                         'startColor' => ['rgb' => 'FFFFFF']
@@ -156,12 +157,12 @@ class ArchiveInaktifSheet implements FromCollection, WithTitle, WithEvents, With
 
                 // 3. MAIN HEADERS
                 $headers = [
-                    ['DAFTAR ARSIP ' . strtoupper($this->status), 'A1:M1'],
-                    ['DINAS PENANAMAN MODAL DAN PELAYANAN TERPADU SATU PINTU', 'A2:M2'],
-                    ['PROVINSI JAWA TIMUR', 'A3:M3'],
-                    ['ISI Bagian....', 'A4:M4'],
-                    [$year ? "TAHUN {$year}" : "SEMUA TAHUN", 'A5:M5'],
-                    [strtoupper($this->status), 'A6:M6']
+                    ['DAFTAR ARSIP ' . strtoupper($this->status), 'A1:L1'],
+                    ['DINAS PENANAMAN MODAL DAN PELAYANAN TERPADU SATU PINTU', 'A2:L2'],
+                    ['PROVINSI JAWA TIMUR', 'A3:L3'],
+                    ['ISI Bagian....', 'A4:L4'],
+                    [$year ? "TAHUN {$year}" : "SEMUA TAHUN", 'A5:L5'],
+                    [strtoupper($this->status), 'A6:L6']
                 ];
 
                 foreach ($headers as $header) {
@@ -170,7 +171,7 @@ class ArchiveInaktifSheet implements FromCollection, WithTitle, WithEvents, With
                 }
 
                 // Style Header Utama (Baris 1-6)
-                $event->sheet->getStyle('A1:M6')->applyFromArray([
+                $event->sheet->getStyle('A1:L6')->applyFromArray([
                     'font' => [
                         'bold' => true,
                         'size' => 12,
@@ -196,8 +197,8 @@ class ArchiveInaktifSheet implements FromCollection, WithTitle, WithEvents, With
                 ]);
 
                 // Khusus untuk Sub Bagian PTSP (Baris 4)
-                $event->sheet->getStyle('A4:M4')->getFont()->setItalic(true);
-                $event->sheet->getStyle('A4:M4')->getFont()->setBold(false);
+                $event->sheet->getStyle('A4:J4')->getFont()->setItalic(true);
+                $event->sheet->getStyle('A4:J4')->getFont()->setBold(false);
 
                 // 4. COLUMN HEADERS (Baris 7-8)
                 $columnHeaders = [
@@ -209,9 +210,10 @@ class ArchiveInaktifSheet implements FromCollection, WithTitle, WithEvents, With
                     ['Tingkat Perkembangan', 'F7:F8'],
                     ['Jumlah', 'G7:G8'],
                     ['Ket.', 'H7:H8'],
-                    ['Nomor Definitif dan Boks', 'I7:J7'],
-                    ['Lokasi Simpan', 'K7:L7'],
-                    ['Jangka Simpan dan Nasib Akhir', 'M7:M8']
+                    ['Nomor Definitif', 'I7:I8'],
+                    ['Jangka Simpan dan Nasib Akhir', 'J7:J8'],
+                    ['Tembusan', 'K7:K8'],
+                    ['File Arsip', 'L7:L8']
                 ];
 
                 foreach ($columnHeaders as $header) {
@@ -219,14 +221,8 @@ class ArchiveInaktifSheet implements FromCollection, WithTitle, WithEvents, With
                     $sheet->mergeCells($header[1]);
                 }
 
-                // Sub headers
-                $sheet->setCellValue('I8', 'Nomor Definitif /Berkas');
-                $sheet->setCellValue('J8', 'Nomor Boks');
-                $sheet->setCellValue('K8', 'Rak');
-                $sheet->setCellValue('L8', 'Baris');
-
                 // Style Header Kolom dengan border
-                $event->sheet->getStyle('A7:M8')->applyFromArray([
+                $event->sheet->getStyle('A7:L8')->applyFromArray([
                     'font' => [
                         'bold' => true,
                         'color' => ['rgb' => 'FFFFFF']
@@ -260,19 +256,29 @@ class ArchiveInaktifSheet implements FromCollection, WithTitle, WithEvents, With
                     $sheet->setCellValue('G'.$row, $archive->jumlah_berkas ?? '-');
                     $sheet->setCellValue('H'.$row, $archive->ket ?? '(tidak ada keterangan)');
                     $sheet->setCellValue('I'.$row, $nomorDefinitif);
-                    $sheet->setCellValue('J'.$row, $archive->box_number ?? '-');
-                    $sheet->setCellValue('K'.$row, $archive->storageRack ? $archive->storageRack->name : ($archive->rack_number ?? '-'));
-                    $sheet->setCellValue('L'.$row, $archive->row_number ?? '-');
                     $jangkaSimpan = ($archive->classification->retention_aktif ?? 0) . ' Tahun';
                     $nasibAkhir = $archive->classification->nasib_akhir ?? 'Musnah';
-                    $sheet->setCellValue('M'.$row, $jangkaSimpan . ' (' . $nasibAkhir . ')');
+                    $sheet->setCellValue('J'.$row, $jangkaSimpan . ' (' . $nasibAkhir . ')');
+
+                    $tembusan = !empty($archive->tembusan) ? implode(', ', $archive->tembusan) : 'Tidak Ada Tembusan';
+                    $sheet->setCellValue('K'.$row, $tembusan);
+
+                    if ($archive->file_path) {
+                        $fileUrl = url(Storage::disk('public')->url($archive->file_path));
+                        $sheet->setCellValue('L'.$row, 'Lihat File');
+                        $sheet->getCell('L'.$row)->getHyperlink()->setUrl($fileUrl);
+                        $sheet->getStyle('L'.$row)->getFont()->setUnderline(true)->getColor()->setRGB('0563C1');
+                    } else {
+                        $sheet->setCellValue('L'.$row, '-');
+                    }
+
                     $row++;
                     $nomorDefinitif++;
                 }
 
                 // Style Data dengan border
                 $lastRow = max($row - 1, 9);
-                $event->sheet->getStyle('A9:M'.$lastRow)->applyFromArray([
+                $event->sheet->getStyle('A9:L'.$lastRow)->applyFromArray([
                     'borders' => [
                         'allBorders' => [
                             'borderStyle' => Border::BORDER_THIN,
@@ -287,7 +293,9 @@ class ArchiveInaktifSheet implements FromCollection, WithTitle, WithEvents, With
                 // Alignment khusus
                 $event->sheet->getStyle('A9:A'.$lastRow)->getAlignment()
                     ->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                $event->sheet->getStyle('E9:M'.$lastRow)->getAlignment()
+                $event->sheet->getStyle('E9:J'.$lastRow)->getAlignment()
+                    ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $event->sheet->getStyle('L9:L'.$lastRow)->getAlignment()
                     ->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
                 // 6. SET COLUMN WIDTHS
@@ -295,8 +303,7 @@ class ArchiveInaktifSheet implements FromCollection, WithTitle, WithEvents, With
                     'A' => 5,   'B' => 15,  'C' => 25,
                     'D' => 40,  'E' => 15,  'F' => 20,
                     'G' => 10,  'H' => 15,  'I' => 20,
-                    'J' => 15,  'K' => 10,  'L' => 10,
-                    'M' => 30
+                    'J' => 30,  'K' => 30,  'L' => 15
                 ];
 
                 foreach ($columnWidths as $col => $width) {
@@ -308,8 +315,8 @@ class ArchiveInaktifSheet implements FromCollection, WithTitle, WithEvents, With
                     $sheet->getRowDimension($i)->setRowHeight(25);
                 }
 
-                // 8. ADD RIGHT BORDER TO COLUMN M
-                $event->sheet->getStyle('M1:M'.$lastRow)->applyFromArray([
+                // 8. ADD RIGHT BORDER TO COLUMN L
+                $event->sheet->getStyle('L1:L'.$lastRow)->applyFromArray([
                     'borders' => [
                         'right' => [
                             'borderStyle' => Border::BORDER_MEDIUM,

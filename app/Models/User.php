@@ -13,7 +13,11 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles, HasApiTokens;
+    use HasFactory, Notifiable, HasApiTokens;
+    use HasRoles {
+        assignRole as protected traitAssignRole;
+        syncRoles as protected traitSyncRoles;
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -49,6 +53,38 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Keep the legacy role_type column in sync with the Spatie role whenever
+     * roles are assigned/synced, so views that still read role_type (sidebar
+     * menus, login/logout popups) don't get out of sync with the real role.
+     */
+    public function assignRole(...$roles)
+    {
+        $result = $this->traitAssignRole(...$roles);
+        $this->syncRoleType();
+        return $result;
+    }
+
+    public function syncRoles(...$roles)
+    {
+        $result = $this->traitSyncRoles(...$roles);
+        $this->syncRoleType();
+        return $result;
+    }
+
+    protected function syncRoleType(): void
+    {
+        $type = match (true) {
+            $this->hasRole('admin') => 'admin',
+            $this->hasRole('intern') => 'intern',
+            default => null,
+        };
+
+        if ($type !== null && $this->role_type !== $type) {
+            $this->forceFill(['role_type' => $type])->save();
+        }
     }
 
     /**

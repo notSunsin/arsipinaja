@@ -1,8 +1,13 @@
-# Arsipinaja
+# 📚 ArsipIn - Sistem Manajemen Arsip Digital
 
-**Arsipinaja** adalah sistem informasi pengelolaan arsip berbasis web untuk membantu instansi mengelola siklus hidup arsip — mulai dari pencatatan, klasifikasi, retensi, hingga penyusutan (musnah/permanen) — secara digital dan terstruktur sesuai Jadwal Retensi Arsip (JRA).
+[![Laravel](https://img.shields.io/badge/Laravel-12.x-red.svg)](https://laravel.com)
+[![PHP](https://img.shields.io/badge/PHP-8.3+-blue.svg)](https://php.net)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.x-38B2AC.svg)](https://tailwindcss.com)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Versi saat ini: **v0.2** (lihat `config/version.php`)
+**ArsipIn** adalah sistem informasi pengelolaan arsip berbasis web untuk membantu instansi mengelola siklus hidup arsip — mulai dari pencatatan, klasifikasi, retensi, hingga penyusutan (musnah/permanen) — secara digital dan terstruktur sesuai Jadwal Retensi Arsip (JRA).
+
+Versi saat ini: **v0.3** (lihat `config/version.php`)
 
 ## Fitur
 
@@ -12,7 +17,9 @@ Versi saat ini: **v0.2** (lihat `config/version.php`)
 - Penomoran definitif otomatis per klasifikasi & tahun
 - Generate nomor berkas otomatis
 - Pencarian arsip (quick search & advanced search) dengan autocomplete
-- Export data arsip ke Excel (per status, custom filter, maupun arsip terpilih)
+- Upload file arsip (PDF, PNG, JPG) pada form tambah/edit arsip, lengkap dengan tombol preview file
+- Tembusan arsip (dropdown Ada/Tidak Ada Tembusan dengan daftar penerima dinamis)
+- Export data arsip ke Excel (per status, custom filter, maupun arsip terpilih), termasuk kolom Tembusan & link preview file arsip
 - Export & cetak label
 
 ### Operasi Massal (Bulk Operations)
@@ -38,9 +45,6 @@ Versi saat ini: **v0.2** (lihat `config/version.php`)
 ### Dashboard & Analitik
 - Dashboard khusus per role (Admin Portal & Portal Magang)
 - Halaman analitik (distribusi kategori, status, tren tahunan)
-
-### Integrasi
-- Notifikasi & laporan via Telegram Bot
 
 ## Tech Stack
 
@@ -156,6 +160,18 @@ Akses melalui salah satu cara berikut:
 - `http://arsipinaja.test` (jika virtual host Laragon aktif)
 - `http://localhost/arsipinaja/public`
 - atau jalankan `php artisan serve` lalu buka `http://127.0.0.1:8000`
+
+## Changelog
+
+### v0.3
+- Tambah fitur upload file arsip (PDF, PNG, JPG) pada form tambah & edit arsip (Admin dan Intern), dengan tombol preview file
+- Tambah fitur tembusan arsip: dropdown Ada Tembusan/Tidak Ada Tembusan, dengan daftar penerima tembusan yang bisa ditambah dinamis
+- Tambah kolom Tembusan dan link preview file arsip pada seluruh export Excel (arsip Aktif, Inaktif/Permanen, Musnah, dan Semua Status)
+
+### v0.2
+- Hapus fitur Manajemen Storage (lokasi rak/baris/boks) dari Admin dan Intern
+- Hapus integrasi Telegram Bot
+- Hapus kolom `box_number`, `file_number`, `rack_number`, `row_number`, `re_evaluation` yang sudah tidak terpakai
 
 ## Lisensi
 

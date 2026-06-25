@@ -25,22 +25,6 @@ use Illuminate\Support\Facades\Cache;
 Route::post('/auth/login-test', [AuthController::class, 'loginTest'])
     ->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class);
 
-// Telegram Bot Routes
-Route::prefix('telegram')->group(function () {
-    // Webhook untuk menerima pesan dari Telegram
-    Route::post('/webhook', [App\Http\Controllers\Api\TelegramController::class, 'webhook'])
-        ->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class);
-
-    // Test dan management routes - PROTECTED with admin middleware
-    Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
-        Route::get('/test', [App\Http\Controllers\Api\TelegramController::class, 'test']);
-        Route::post('/set-webhook', [App\Http\Controllers\Api\TelegramController::class, 'setWebhook']);
-        Route::delete('/delete-webhook', [App\Http\Controllers\Api\TelegramController::class, 'deleteWebhook']);
-        Route::post('/send-test', [App\Http\Controllers\Api\TelegramController::class, 'sendTestMessage']);
-        Route::post('/send-welcome', [App\Http\Controllers\Api\TelegramController::class, 'sendWelcome']);
-    });
-});
-
 // API routes with authentication and rate limiting
 Route::middleware(['auth:sanctum', 'rate.limit:100,1'])->group(function () {
     // User management

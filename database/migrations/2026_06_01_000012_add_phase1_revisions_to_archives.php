@@ -20,17 +20,8 @@ return new class extends Migration
             $table->text('lampiran_surat')->nullable()->after('description')->comment('Lampiran Arsip (text/paragraph)');
             $table->enum('skkad', ['SANGAT RAHASIA', 'TERBATAS', 'RAHASIA', 'BIASA/TERBUKA'])->default('BIASA/TERBUKA')->after('tingkat_perkembangan');
 
-            // Storage location fields for new workflow
-            $table->unsignedInteger('box_number')->nullable()->after('skkad')->comment('Global box sequence number');
-            $table->unsignedInteger('file_number')->nullable()->after('box_number')->comment('File number within box (restarts at 1 per box)');
-            $table->unsignedSmallInteger('rack_number')->nullable()->after('file_number')->comment('Physical rack number');
-            $table->unsignedSmallInteger('row_number')->nullable()->after('rack_number')->comment('Shelf row number');
-
-            // Add re-evaluation flag for "Dinilai Kembali" archives
-            $table->boolean('re_evaluation')->default(false)->after('row_number')->comment('Archive marked for re-evaluation');
-
             // Manual input flags for non-JRA categories
-            $table->boolean('is_manual_input')->default(false)->after('re_evaluation')->comment('Manual input for non-JRA categories');
+            $table->boolean('is_manual_input')->default(false)->after('skkad')->comment('Manual input for non-JRA categories');
             $table->string('manual_classification_code')->nullable()->after('is_manual_input')->comment('Manual classification code');
             $table->string('manual_category_name')->nullable()->after('manual_classification_code')->comment('Manual category name');
             $table->integer('manual_retention_aktif')->nullable()->after('manual_category_name')->comment('Manual active retention period');
@@ -52,11 +43,6 @@ return new class extends Migration
             $table->dropColumn([
                 'lampiran_surat',
                 'skkad',
-                'box_number',
-                'file_number',
-                'rack_number',
-                'row_number',
-                're_evaluation',
                 'is_manual_input',
                 'manual_classification_code',
                 'manual_category_name',

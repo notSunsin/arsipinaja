@@ -43,7 +43,7 @@
                 </div>
             @endif
 
-            <form action="{{ route('intern.archives.store') }}" method="POST" class="space-y-6">
+            <form action="{{ route('intern.archives.store') }}" method="POST" class="space-y-6" enctype="multipart/form-data">
                 @csrf
 
                 <!-- Information Notice -->
@@ -71,6 +71,25 @@
                         <i class="fas fa-info-circle mr-2 text-orange-500"></i>
                         Informasi Dasar
                     </h3>
+
+                    <!-- Upload File Arsip -->
+                    <div class="mb-6">
+                        <label for="file" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-file-upload mr-2 text-indigo-500"></i>Upload File Arsip (PDF, PNG, JPG)
+                        </label>
+                        <div class="flex items-center gap-3">
+                            <input type="file" name="file" id="file" accept=".pdf,.png,.jpg,.jpeg"
+                                class="w-full bg-white border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors py-2.5 px-4">
+                            <button type="button" id="preview_file_btn" disabled
+                                class="inline-flex items-center px-4 py-2.5 bg-gray-200 text-gray-500 rounded-xl text-sm font-medium cursor-not-allowed transition-colors whitespace-nowrap">
+                                <i class="fas fa-eye mr-2"></i>Preview
+                            </button>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">Format yang didukung: PDF, PNG, JPG/JPEG. Maks. 10MB.</p>
+                        @error('file')
+                            <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span>
+                        @enderror
+                    </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Kategori -->
@@ -298,6 +317,48 @@
                                 class="w-full bg-white border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors py-3 px-4"
                                 value="{{ old('jumlah_berkas', 1) }}" required placeholder="Masukkan jumlah berkas">
                             @error('jumlah_berkas')
+                                <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span>
+                            @enderror
+                        </div>
+
+                        <!-- Tembusan -->
+                        <div class="md:col-span-2">
+                            <label for="tembusan_status" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-share mr-2 text-rose-500"></i>Tembusan
+                            </label>
+                            <select name="tembusan_status" id="tembusan_status"
+                                class="w-full bg-white border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors py-3 px-4">
+                                <option value="tidak_ada" {{ old('tembusan_status', 'tidak_ada') == 'tidak_ada' ? 'selected' : '' }}>Tidak Ada Tembusan</option>
+                                <option value="ada" {{ old('tembusan_status') == 'ada' ? 'selected' : '' }}>Ada Tembusan</option>
+                            </select>
+                            @error('tembusan_status')
+                                <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span>
+                            @enderror
+
+                            @php $oldTembusan = old('tembusan', ['']); @endphp
+                            <div id="tembusan_fields_container" class="mt-3 space-y-2 {{ old('tembusan_status') == 'ada' ? '' : 'hidden' }}">
+                                @foreach ($oldTembusan as $i => $value)
+                                    <div class="flex items-center gap-2 tembusan-field-row">
+                                        <input type="text" name="tembusan[]" value="{{ $value }}"
+                                            class="w-full bg-white border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors py-2.5 px-4"
+                                            placeholder="Tembusan kepada...">
+                                        @if ($i === 0)
+                                            <button type="button" id="add_tembusan_btn"
+                                                class="inline-flex items-center px-3 py-2.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-xl transition-colors">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        @else
+                                            <button type="button" class="remove-tembusan-btn inline-flex items-center px-3 py-2.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl transition-colors">
+                                                <i class="fas fa-minus"></i>
+                                            </button>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                            @error('tembusan')
+                                <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span>
+                            @enderror
+                            @error('tembusan.*')
                                 <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span>
                             @enderror
                         </div>
@@ -750,6 +811,66 @@
                 if ('{{ old('is_manual_input') }}' === '1') {
                     toggleManualInput(true);
                 }
+
+                // File preview button (uses an object URL of the locally selected file)
+                const fileInput = document.getElementById('file');
+                const previewBtn = document.getElementById('preview_file_btn');
+                let previewObjectUrl = null;
+
+                fileInput.addEventListener('change', function() {
+                    if (previewObjectUrl) {
+                        URL.revokeObjectURL(previewObjectUrl);
+                        previewObjectUrl = null;
+                    }
+                    if (this.files && this.files[0]) {
+                        previewObjectUrl = URL.createObjectURL(this.files[0]);
+                        previewBtn.disabled = false;
+                        previewBtn.classList.remove('bg-gray-200', 'text-gray-500', 'cursor-not-allowed');
+                        previewBtn.classList.add('bg-indigo-600', 'text-white', 'hover:bg-indigo-700');
+                    } else {
+                        previewBtn.disabled = true;
+                        previewBtn.classList.add('bg-gray-200', 'text-gray-500', 'cursor-not-allowed');
+                        previewBtn.classList.remove('bg-indigo-600', 'text-white', 'hover:bg-indigo-700');
+                    }
+                });
+
+                previewBtn.addEventListener('click', function() {
+                    if (previewObjectUrl) {
+                        window.open(previewObjectUrl, '_blank');
+                    }
+                });
+
+                // Tembusan dropdown toggle + dynamic add/remove fields
+                const tembusanStatusSelect = document.getElementById('tembusan_status');
+                const tembusanContainer = document.getElementById('tembusan_fields_container');
+
+                function toggleTembusanFields() {
+                    if (tembusanStatusSelect.value === 'ada') {
+                        tembusanContainer.classList.remove('hidden');
+                    } else {
+                        tembusanContainer.classList.add('hidden');
+                    }
+                }
+                tembusanStatusSelect.addEventListener('change', toggleTembusanFields);
+                toggleTembusanFields();
+
+                tembusanContainer.addEventListener('click', function(e) {
+                    if (e.target.closest('#add_tembusan_btn')) {
+                        const row = document.createElement('div');
+                        row.className = 'flex items-center gap-2 tembusan-field-row';
+                        row.innerHTML = `
+                            <input type="text" name="tembusan[]"
+                                class="w-full bg-white border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors py-2.5 px-4"
+                                placeholder="Tembusan kepada...">
+                            <button type="button" class="remove-tembusan-btn inline-flex items-center px-3 py-2.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl transition-colors">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                        `;
+                        tembusanContainer.appendChild(row);
+                    } else if (e.target.closest('.remove-tembusan-btn')) {
+                        e.target.closest('.tembusan-field-row').remove();
+                    }
+                });
 
                 // Handle form submission with timeout for SweetAlert
                 $('form').on('submit', function() {

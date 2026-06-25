@@ -28,6 +28,10 @@ class Archive extends Model
         'manual_nasib_akhir',
         'jumlah_berkas',
         'ket',
+        'file_path',
+        'file_original_name',
+        'file_mime_type',
+        'tembusan',
         'retention_aktif',
         'retention_inaktif',
         'transition_active_due',
@@ -50,6 +54,7 @@ class Archive extends Model
         'is_manual_input' => 'boolean',
         'created_by' => 'integer',
         'updated_by' => 'integer',
+        'tembusan' => 'array',
     ];
 
     public function category(): BelongsTo
@@ -90,6 +95,24 @@ class Archive extends Model
     public function scopePermanen($query)
     {
         return $query->where('status', 'Permanen');
+    }
+
+    /**
+     * Get the public URL of the uploaded archive file, if any.
+     */
+    public function getFileUrlAttribute()
+    {
+        return $this->file_path
+            ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->file_path)
+            : null;
+    }
+
+    /**
+     * Whether this archive has a non-empty list of tembusan recipients.
+     */
+    public function hasTembusan(): bool
+    {
+        return !empty($this->tembusan);
     }
 
     /**

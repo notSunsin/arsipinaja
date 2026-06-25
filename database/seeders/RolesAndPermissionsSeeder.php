@@ -17,6 +17,8 @@ class RolesAndPermissionsSeeder extends Seeder
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
         // Create permissions based on actual application features
+        // NOTE: print labels / storage management / locations features have
+        // been removed from the app, so their permissions are dropped below.
         $permissions = [
             // Archive management permissions
             'view archives',
@@ -25,21 +27,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'delete archives',
             'export archives',
             'bulk operations',
-            'print labels',
             'evaluate archives',
             'destroy archives',
-
-            // Storage management permissions
-            'manage storage',
-            'view storage',
-            'create storage',
-            'edit storage',
-            'delete storage',
 
             // Master data permissions
             'manage categories',
             'manage classifications',
-            'manage locations',
 
             // User management permissions
             'manage users',
@@ -63,14 +56,6 @@ class RolesAndPermissionsSeeder extends Seeder
             // Search permissions
             'search archives',
             'advanced search',
-
-            // Telegram bot permissions
-            'manage telegram bot',
-            'view telegram logs',
-
-            // System permissions
-            'view system logs',
-            'manage system settings',
         ];
 
         // Create permissions safely (won't duplicate if they exist)
@@ -78,19 +63,24 @@ class RolesAndPermissionsSeeder extends Seeder
             Permission::firstOrCreate(['name' => $permission]);
         }
 
+        // Remove permissions left over from features that no longer exist
+        // (e.g. print labels, storage management, locations, system logs/settings)
+        Permission::whereNotIn('name', $permissions)->get()->each(function (Permission $permission) {
+            $permission->roles()->detach();
+            $permission->delete();
+        });
+
         // 1. ADMIN ROLE - Full access to everything
         $adminRole = Role::firstOrCreate(['name' => 'admin']);
-        $adminRole->givePermissionTo(Permission::all());
+        $adminRole->syncPermissions(Permission::all());
 
         // 2. INTERN ROLE (Mahasiswa Magang) - Basic archive operations only
         $internRole = Role::firstOrCreate(['name' => 'intern']);
-        $internRole->givePermissionTo([
+        $internRole->syncPermissions([
             'view archives',
             'create archives',
             'edit archives',
             'export archives',
-            'print labels',
-            'view storage',
             'view intern dashboard',
             'search archives',
         ]);

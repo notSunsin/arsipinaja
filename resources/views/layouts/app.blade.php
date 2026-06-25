@@ -192,6 +192,9 @@
         <!-- Login Confetti Notification -->
     <x-login-confetti />
 
+    <!-- Logout Confirmation Modal -->
+    <x-logout-confirm-modal />
+
     <!-- Page Heading -->
     {{-- @isset($header)
         <header class="bg-white shadow">

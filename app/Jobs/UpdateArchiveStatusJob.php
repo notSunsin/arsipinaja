@@ -3,7 +3,6 @@
 namespace App\Jobs;
 
 use App\Models\Archive;
-use App\Services\TelegramService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -45,19 +44,6 @@ class UpdateArchiveStatusJob implements ShouldQueue
             $oldStatus = $archive->status;
             $archive->update(['status' => 'Inaktif']);
             Log::info('UpdateArchiveStatusJob: Archive ID ' . $archive->id . ' transitioned from ' . $oldStatus . ' to Inaktif (due: ' . $archive->transition_active_due->toDateString() . ')');
-
-            // Send Telegram notification for status transition
-            try {
-                $telegramService = app(TelegramService::class);
-                $telegramService->sendStatusTransitionNotification($archive, $oldStatus, 'Inaktif');
-            } catch (\Exception $e) {
-                Log::error('Failed to send Telegram notification for status transition', [
-                    'error' => $e->getMessage(),
-                    'archive_id' => $archive->id,
-                    'old_status' => $oldStatus,
-                    'new_status' => 'Inaktif'
-                ]);
-            }
         }
 
         // 2. Promote Inaktif → Musnah based on classification's nasib_akhir (only for non-manually overridden archives)
@@ -70,25 +56,16 @@ class UpdateArchiveStatusJob implements ShouldQueue
         Log::info('UpdateArchiveStatusJob: Found ' . $inactiveToFinal->count() . ' archives to transition from Inaktif to final status (excluding manual overrides)');
 
         foreach ($inactiveToFinal as $archive) {
-            // Determine final status based on category and classification
-            $finalStatus = 'Musnah';
+            // Determine final status based on classification's nasib_akhir (or manual override)
+            if ($archive->is_manual_input && $archive->manual_nasib_akhir) {
+                $finalStatus = $archive->manual_nasib_akhir;
+            } else {
+                $finalStatus = $archive->classification->nasib_akhir ?? 'Musnah';
+            }
 
             $oldStatus = $archive->status;
             $archive->update(['status' => $finalStatus]);
             Log::info('UpdateArchiveStatusJob: Archive ID ' . $archive->id . ' transitioned from ' . $oldStatus . ' to ' . $finalStatus . ' (due: ' . $archive->transition_inactive_due->toDateString() . ')');
-
-            // Send Telegram notification for status transition
-            try {
-                $telegramService = app(TelegramService::class);
-                $telegramService->sendStatusTransitionNotification($archive, $oldStatus, $finalStatus);
-            } catch (\Exception $e) {
-                Log::error('Failed to send Telegram notification for status transition', [
-                    'error' => $e->getMessage(),
-                    'archive_id' => $archive->id,
-                    'old_status' => $oldStatus,
-                    'new_status' => $finalStatus
-                ]);
-            }
         }
 
         Log::info('UpdateArchiveStatusJob: Archive status update job completed');

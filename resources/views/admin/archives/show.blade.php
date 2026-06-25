@@ -139,6 +139,42 @@
                         <p class="text-blue-900">{{ $archive->ket }}</p>
                     </div>
                 @endif
+
+                <!-- File Arsip -->
+                <div class="mt-4 bg-gray-50 rounded-lg p-4">
+                    <div class="flex items-center mb-2">
+                        <i class="fas fa-file mr-2 text-indigo-500"></i>
+                        <span class="text-sm font-medium text-gray-600">File Arsip</span>
+                    </div>
+                    @if ($archive->file_path)
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-900 truncate mr-3">{{ $archive->file_original_name ?? 'File arsip terlampir' }}</span>
+                            <a href="{{ $archive->file_url }}" target="_blank"
+                                class="inline-flex items-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium transition-colors whitespace-nowrap">
+                                <i class="fas fa-eye mr-1.5"></i>Preview File
+                            </a>
+                        </div>
+                    @else
+                        <p class="text-gray-500 text-sm">Belum ada file yang diupload</p>
+                    @endif
+                </div>
+
+                <!-- Tembusan -->
+                <div class="mt-4 bg-gray-50 rounded-lg p-4">
+                    <div class="flex items-center mb-2">
+                        <i class="fas fa-share mr-2 text-rose-500"></i>
+                        <span class="text-sm font-medium text-gray-600">Tembusan</span>
+                    </div>
+                    @if ($archive->hasTembusan())
+                        <ul class="list-disc list-inside text-gray-900 space-y-1">
+                            @foreach ($archive->tembusan as $tembusan)
+                                <li>{{ $tembusan }}</li>
+                            @endforeach
+                        </ul>
+                    @else
+                        <p class="text-gray-500 text-sm">Tidak ada tembusan</p>
+                    @endif
+                </div>
             </div>
 
             <!-- Classification & Retention Info -->

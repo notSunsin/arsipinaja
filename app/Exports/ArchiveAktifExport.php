@@ -8,6 +8,7 @@ use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Events\AfterSheet;
+use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -109,7 +110,7 @@ class ArchiveAktifSheet implements FromCollection, WithTitle, WithEvents
 
                 // Header Utama
                 $sheet->setCellValue('A1', 'DAFTAR BERKAS AKTIF');
-                $sheet->mergeCells('A1:J1');
+                $sheet->mergeCells('A1:I1');
                 $sheet->getStyle('A1')->applyFromArray([
                     'font' => ['bold' => true, 'size' => 14],
                     'alignment' => [
@@ -134,7 +135,8 @@ class ArchiveAktifSheet implements FromCollection, WithTitle, WithEvents
                     'KURUN WAKTU',
                     'JUMLAH',
                     'SKKAD',
-                    'PENYIMPANAN', '', ''
+                    'TEMBUSAN',
+                    'FILE ARSIP',
                 ];
 
                 foreach ($headersRow2 as $key => $header) {
@@ -142,21 +144,13 @@ class ArchiveAktifSheet implements FromCollection, WithTitle, WithEvents
                     $sheet->setCellValue($cell, $header);
                 }
 
-                // Merge kolom PENYIMPANAN (H2:J2)
-                $sheet->mergeCells('H2:J2');
-
-                // Header Baris 3 (sub header dari PENYIMPANAN)
-                $sheet->setCellValue('H3', 'RAK');
-                $sheet->setCellValue('I3', 'BARIS');
-                $sheet->setCellValue('J3', 'BOX');
-
-                // Merge vertikal kolom A–G
-                foreach (range('A', 'G') as $col) {
+                // Merge vertikal kolom A–I
+                foreach (range('A', 'I') as $col) {
                     $sheet->mergeCells("{$col}2:{$col}3");
                 }
 
-                // Style untuk Header (A2:J3)
-                $sheet->getStyle('A2:J3')->applyFromArray([
+                // Style untuk Header (A2:I3)
+                $sheet->getStyle('A2:I3')->applyFromArray([
                     'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                     'fill' => [
                         'fillType' => Fill::FILL_SOLID,
@@ -187,16 +181,25 @@ class ArchiveAktifSheet implements FromCollection, WithTitle, WithEvents
                     $sheet->setCellValue('F'.$row, $archive->jumlah_berkas ?? '-');
                     $sheet->setCellValue('G'.$row, $archive->skkad ?? '-');
 
-                    $sheet->setCellValue('H'.$row, $archive->storageRack ? $archive->storageRack->name : ($archive->rack_number ?? '-'));
-                    $sheet->setCellValue('I'.$row, $archive->row_number ?? '-');
-                    $sheet->setCellValue('J'.$row, $archive->box_number ?? '-');
+                    $tembusan = !empty($archive->tembusan) ? implode(', ', $archive->tembusan) : 'Tidak Ada Tembusan';
+                    $sheet->setCellValue('H'.$row, $tembusan);
+
+                    if ($archive->file_path) {
+                        $fileUrl = url(Storage::disk('public')->url($archive->file_path));
+                        $sheet->setCellValue('I'.$row, 'Lihat File');
+                        $sheet->getCell('I'.$row)->getHyperlink()->setUrl($fileUrl);
+                        $sheet->getStyle('I'.$row)->getFont()->setUnderline(true)->getColor()->setRGB('0563C1');
+                    } else {
+                        $sheet->setCellValue('I'.$row, '-');
+                    }
+
                     $row++;
                 }
 
                 // Styling data
                 $lastRow = $row - 1;
                 if ($lastRow >= 4) {
-                    $sheet->getStyle("A4:J{$lastRow}")->applyFromArray([
+                    $sheet->getStyle("A4:I{$lastRow}")->applyFromArray([
                         'borders' => [
                             'allBorders' => ['borderStyle' => Border::BORDER_THIN]
                         ],
@@ -207,7 +210,8 @@ class ArchiveAktifSheet implements FromCollection, WithTitle, WithEvents
 
                     // Horizontal alignment
                     $sheet->getStyle("A4:A{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                    $sheet->getStyle("F4:J{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet->getStyle("F4:G{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet->getStyle("I4:I{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                 }
 
                 // Column widths
@@ -218,31 +222,30 @@ class ArchiveAktifSheet implements FromCollection, WithTitle, WithEvents
                 $sheet->getColumnDimension('E')->setWidth(15);
                 $sheet->getColumnDimension('F')->setWidth(10);
                 $sheet->getColumnDimension('G')->setWidth(15);
-                $sheet->getColumnDimension('H')->setWidth(10);
-                $sheet->getColumnDimension('I')->setWidth(10);
-                $sheet->getColumnDimension('J')->setWidth(10);
+                $sheet->getColumnDimension('H')->setWidth(30);
+                $sheet->getColumnDimension('I')->setWidth(15);
 
                 // Row heights
                 $sheet->getRowDimension(1)->setRowHeight(25);
                 $sheet->getRowDimension(2)->setRowHeight(25);
                 $sheet->getRowDimension(3)->setRowHeight(25);
 
-                // Hide columns after J
-                foreach (range('K', 'Z') as $col) {
+                // Hide columns after I
+                foreach (range('J', 'Z') as $col) {
                     $sheet->getColumnDimension($col)->setWidth(0);
                     $sheet->getColumnDimension($col)->setVisible(false);
                 }
 
-                // Clear all cells after column J
+                // Clear all cells after column I
                 $highestRow = $sheet->getHighestRow();
                 for ($r = 1; $r <= $highestRow; $r++) {
-                    for ($col = 'K'; $col <= 'Z'; $col++) {
+                    for ($col = 'J'; $col <= 'Z'; $col++) {
                         $sheet->setCellValue($col.$r, null);
                     }
                 }
 
-                // Set white background for area after J
-                $sheet->getStyle('K1:Z'.$highestRow)->applyFromArray([
+                // Set white background for area after I
+                $sheet->getStyle('J1:Z'.$highestRow)->applyFromArray([
                     'fill' => [
                         'fillType' => Fill::FILL_SOLID,
                         'startColor' => ['rgb' => 'FFFFFF']

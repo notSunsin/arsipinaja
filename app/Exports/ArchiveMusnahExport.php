@@ -8,6 +8,7 @@ use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Events\AfterSheet;
+use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -111,10 +112,10 @@ class ArchiveMusnahSheet implements FromCollection, WithTitle, WithEvents
 
                 // Header Utama - hanya DAFTAR ARSIP USUL MUSNAH
                 $sheet->setCellValue('A1', 'DAFTAR ARSIP USUL MUSNAH');
-                $sheet->mergeCells('A1:H1');
+                $sheet->mergeCells('A1:J1');
 
                 // Style Header Utama
-                $event->sheet->getStyle('A1:H1')->applyFromArray([
+                $event->sheet->getStyle('A1:J1')->applyFromArray([
                     'font' => [
                         'bold' => true,
                         'size' => 14,
@@ -136,14 +137,16 @@ class ArchiveMusnahSheet implements FromCollection, WithTitle, WithEvents
 
                 // Header Kolom (baris 2)
                 $headers = [
-                    'NO', 
+                    'NO',
                     'KODE KLASIFIKASI',
                     'NOMOR SURAT',
                     'URAIAN INFORMASI ARSIP',
                     'KURUN WAKTU',
                     'JUMLAH',
                     'SKKAD',
-                    'NASIB AKHIR'
+                    'NASIB AKHIR',
+                    'TEMBUSAN',
+                    'FILE ARSIP'
                 ];
 
                 foreach ($headers as $key => $header) {
@@ -152,7 +155,7 @@ class ArchiveMusnahSheet implements FromCollection, WithTitle, WithEvents
                 }
 
                 // Style Header Kolom
-                $event->sheet->getStyle('A2:H2')->applyFromArray([
+                $event->sheet->getStyle('A2:J2')->applyFromArray([
                     'font' => [
                         'bold' => true,
                         'color' => ['rgb' => 'FFFFFF']
@@ -184,13 +187,25 @@ class ArchiveMusnahSheet implements FromCollection, WithTitle, WithEvents
                     $sheet->setCellValue('F'.$row, $archive->jumlah_berkas ?? '-');
                     $sheet->setCellValue('G'.$row, $archive->skkad ?? '-');
                     $sheet->setCellValue('H'.$row, $archive->classification->nasib_akhir ?? 'Musnah');
-                    
+
+                    $tembusan = !empty($archive->tembusan) ? implode(', ', $archive->tembusan) : 'Tidak Ada Tembusan';
+                    $sheet->setCellValue('I'.$row, $tembusan);
+
+                    if ($archive->file_path) {
+                        $fileUrl = url(Storage::disk('public')->url($archive->file_path));
+                        $sheet->setCellValue('J'.$row, 'Lihat File');
+                        $sheet->getCell('J'.$row)->getHyperlink()->setUrl($fileUrl);
+                        $sheet->getStyle('J'.$row)->getFont()->setUnderline(true)->getColor()->setRGB('0563C1');
+                    } else {
+                        $sheet->setCellValue('J'.$row, '-');
+                    }
+
                     $row++;
                 }
 
                 // Style Data
                 $lastRow = max($row - 1, 3);
-                $event->sheet->getStyle('A3:H'.$lastRow)->applyFromArray([
+                $event->sheet->getStyle('A3:J'.$lastRow)->applyFromArray([
                     'borders' => [
                         'allBorders' => [
                             'borderStyle' => Border::BORDER_THIN,
@@ -207,12 +222,15 @@ class ArchiveMusnahSheet implements FromCollection, WithTitle, WithEvents
                     ->setHorizontal(Alignment::HORIZONTAL_CENTER);
                 $event->sheet->getStyle('E3:H'.$lastRow)->getAlignment()
                     ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $event->sheet->getStyle('J3:J'.$lastRow)->getAlignment()
+                    ->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
                 // Set column widths
                 $columnWidths = [
                     'A' => 5,   'B' => 15,  'C' => 20,
                     'D' => 40,  'E' => 15,  'F' => 10,
-                    'G' => 15,  'H' => 15
+                    'G' => 15,  'H' => 15,  'I' => 30,
+                    'J' => 15
                 ];
 
                 foreach ($columnWidths as $col => $width) {
@@ -223,8 +241,8 @@ class ArchiveMusnahSheet implements FromCollection, WithTitle, WithEvents
                 $sheet->getRowDimension(1)->setRowHeight(25);
                 $sheet->getRowDimension(2)->setRowHeight(20);
 
-                // Add right border to column H
-                $event->sheet->getStyle('H1:H'.$lastRow)->applyFromArray([
+                // Add right border to column J
+                $event->sheet->getStyle('J1:J'.$lastRow)->applyFromArray([
                     'borders' => [
                         'right' => [
                             'borderStyle' => Border::BORDER_MEDIUM,
@@ -233,22 +251,22 @@ class ArchiveMusnahSheet implements FromCollection, WithTitle, WithEvents
                     ]
                 ]);
 
-                // Hide columns after H
-                foreach (range('I', 'Z') as $col) {
+                // Hide columns after J
+                foreach (range('K', 'Z') as $col) {
                     $sheet->getColumnDimension($col)->setWidth(0);
                     $sheet->getColumnDimension($col)->setVisible(false);
                 }
 
-                // Clear all cells after column H
+                // Clear all cells after column J
                 $highestRow = $sheet->getHighestRow();
                 for ($row = 1; $row <= $highestRow; $row++) {
-                    for ($col = 'I'; $col <= 'Z'; $col++) {
+                    for ($col = 'K'; $col <= 'Z'; $col++) {
                         $sheet->setCellValue($col.$row, null);
                     }
                 }
-                
-                // Set white background for area after H
-                $sheet->getStyle('I1:Z'.$highestRow)->applyFromArray([
+
+                // Set white background for area after J
+                $sheet->getStyle('K1:Z'.$highestRow)->applyFromArray([
                     'fill' => [
                         'fillType' => Fill::FILL_SOLID,
                         'startColor' => ['rgb' => 'FFFFFF']

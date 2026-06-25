@@ -63,9 +63,9 @@
 
                                 <div class="border-t border-gray-100 my-1"></div>
 
-                                <form method="POST" action="{{ route('logout') }}">
+                                <form method="POST" action="{{ route('logout') }}" id="dashboardLogoutForm">
                                     @csrf
-                                    <button type="submit"
+                                    <button type="button" @click="open = false; openLogoutModal(document.getElementById('dashboardLogoutForm'))"
                                         class="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
                                         <i class="fas fa-sign-out-alt mr-3 text-red-400"></i>
                                         Logout

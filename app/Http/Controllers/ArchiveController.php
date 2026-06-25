@@ -13,12 +13,12 @@ use App\Exports\ArchiveAktifExport;
 use App\Exports\ArchiveMusnahExport;
 use App\Exports\ArchiveInaktifPermanenExport;
 use App\Exports\ArchiveStatusExport;
-use App\Services\TelegramService;
 use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Throwable;
 use App\Models\User;
 use App\Services\ArchiveAutomationService;
@@ -238,13 +238,26 @@ class ArchiveController extends Controller
         $status = 'Aktif'; // Default
 
         if ($archive->transition_inactive_due <= $today) {
-            $status = 'Musnah';
+            $status = $this->resolveFinalStatus($archive);
         } elseif ($archive->transition_active_due <= $today) {
             $status = 'Inaktif';
         }
 
         $archive->update(['status' => $status]);
         return $status;
+    }
+
+    /**
+     * Resolve the final disposition status (Musnah/Permanen) once retention has fully elapsed,
+     * based on the classification's nasib_akhir (or manual override for manual-input archives).
+     */
+    private function resolveFinalStatus(Archive $archive): string
+    {
+        if ($archive->is_manual_input && $archive->manual_nasib_akhir) {
+            return $archive->manual_nasib_akhir;
+        }
+
+        return $archive->classification->nasib_akhir ?? 'Musnah';
     }
 
     /**
@@ -266,6 +279,47 @@ class ArchiveController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * Resolve the tembusan list from the request, normalized to null when "tidak_ada".
+     */
+    private function resolveTembusan(Request $request): ?array
+    {
+        if ($request->input('tembusan_status') !== 'ada') {
+            return null;
+        }
+
+        $tembusan = array_values(array_filter(
+            (array) $request->input('tembusan', []),
+            fn ($t) => trim((string) $t) !== ''
+        ));
+
+        return empty($tembusan) ? null : $tembusan;
+    }
+
+    /**
+     * Store the uploaded archive file (if any) and return the data to merge into the archive.
+     * Deletes the previous file from storage when replacing it on an existing archive.
+     */
+    private function handleArchiveFileUpload(Request $request, ?Archive $existingArchive = null): array
+    {
+        if (!$request->hasFile('file')) {
+            return [];
+        }
+
+        if ($existingArchive && $existingArchive->file_path) {
+            Storage::disk('public')->delete($existingArchive->file_path);
+        }
+
+        $file = $request->file('file');
+        $path = $file->store('archives', 'public');
+
+        return [
+            'file_path' => $path,
+            'file_original_name' => $file->getClientOriginalName(),
+            'file_mime_type' => $file->getClientMimeType(),
+        ];
     }
 
     /**
@@ -361,7 +415,10 @@ class ArchiveController extends Controller
                 'status' => 'Aktif', // Initial status
                 'created_by' => Auth::id(),
                 'updated_by' => Auth::id(),
-            ]);
+                'tembusan' => $this->resolveTembusan($request),
+            ], $this->handleArchiveFileUpload($request));
+
+            unset($archiveData['file'], $archiveData['tembusan_status']);
 
             // Add manual fields if needed
             if ($this->requiresManualInput($tempArchive)) {
@@ -497,7 +554,10 @@ class ArchiveController extends Controller
                 'transition_active_due' => $transitionActiveDue,
                 'transition_inactive_due' => $transitionInactiveDue,
                 'updated_by' => Auth::id(),
-            ]);
+                'tembusan' => $this->resolveTembusan($request),
+            ], $this->handleArchiveFileUpload($request, $archive));
+
+            unset($archiveData['file'], $archiveData['tembusan_status']);
 
             // Update the archive
             $archive->update($archiveData);
@@ -555,6 +615,10 @@ class ArchiveController extends Controller
 
             // Log the deletion for audit trail
             Log::info("Archive deleted: ID {$archive->id}, Description: {$archiveDescription}, Number: {$archiveNumber}, Deleted by user: " . Auth::id());
+
+            if ($archive->file_path) {
+                Storage::disk('public')->delete($archive->file_path);
+            }
 
             $archive->delete();
 
